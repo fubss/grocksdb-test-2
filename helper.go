@@ -28,8 +28,7 @@ type DB struct {
 
 // CreateDB constructs a `DB`
 func CreateDB(conf *Conf) *DB {
-	fmt.Printf("RocksDB constructing...")
-	fmt.Printf("RocksDB constructing successfully finished")
+	fmt.Printf("\t-------->RocksDB constructing...\n")
 	return &DB{
 		conf:    conf,
 		dbState: closed,
@@ -38,7 +37,7 @@ func CreateDB(conf *Conf) *DB {
 
 // Open opens the underlying db
 func (dbInst *DB) Open() {
-	fmt.Printf("Opening DB...")
+	fmt.Printf("\t-------->Opening DB...\n")
 	dbInst.mutex.Lock()
 	defer dbInst.mutex.Unlock()
 	if dbInst.dbState == opened {
@@ -53,7 +52,7 @@ func (dbInst *DB) Open() {
 
 	dbPath := dbInst.conf.DBPath
 	var err error
-	fmt.Printf("ParanoidChecks is: %t", dbOpts.ParanoidChecks())
+	fmt.Printf("\t-------->ParanoidChecks is: %t\n", dbOpts.ParanoidChecks())
 
 	isDirEmpty, err := CreateDirIfMissing(dbPath)
 	if err != nil {
@@ -64,8 +63,25 @@ func (dbInst *DB) Open() {
 	if dbInst.db, err = rocksdb.OpenDb(dbOpts, dbPath); err != nil {
 		panic(fmt.Sprintf("Error opening rocksdb: %s", err))
 	}
-	fmt.Printf("DB was successfully opened in path: [ %s ]", dbPath)
+	fmt.Printf("\t-------->DB was successfully opened in path: [ %s ]\n", dbPath)
 	dbInst.dbState = opened
+}
+
+// IsEmpty returns whether or not a database is empty
+func (dbInst *DB) IsEmpty() (bool, error) {
+	fmt.Printf("\t-------->Checkin if DB is empty...\n")
+	if dbInst.dbState == closed {
+		return false, errors.New("RocksDB is closed.")
+	}
+	dbInst.mutex.RLock()
+	defer dbInst.mutex.RUnlock()
+	itr := dbInst.db.NewIterator(rocksdb.NewDefaultReadOptions())
+	defer itr.Close()
+	itr.SeekToFirst()
+	hasItems := itr.Valid()
+	fmt.Printf("\t-------->Checking for emptiness has finished\n")
+	return !hasItems,
+		errors.Wrapf(itr.Err(), "error while trying to see if the rocksdb at path [%s] is empty", dbInst.conf.DBPath)
 }
 
 // Close closes the underlying db
@@ -75,22 +91,22 @@ func (dbInst *DB) Close() {
 	if dbInst.dbState == closed {
 		return
 	}
-	fmt.Printf("Closing db...")
+	fmt.Printf("\t-------->Closing db...\n")
 	dbInst.db.Close() //TODO: should we check if db closed here?
 	dbInst.dbState = closed
 }
 
 // Get returns the value for the given key
 func (dbInst *DB) Get(key []byte) ([]byte, error) {
-	fmt.Printf("Getting key [%s] from RocksDB...", key)
+	fmt.Printf("\t-------->Getting key [%s] from RocksDB...\n", key)
 	dbInst.mutex.RLock()
 	defer dbInst.mutex.RUnlock()
 	value, err := dbInst.db.Get(rocksdb.NewDefaultReadOptions(), key)
 	if err != nil {
-		fmt.Printf("Error retrieving rocksdb key [%#v]: %s", key, err)
+		fmt.Printf("\t-------->Error retrieving rocksdb key [%#v]: %s\n", key, err)
 		return nil, errors.Wrapf(err, "error retrieving rocksdb key [%#v]", key)
 	}
-	fmt.Printf("got data [%s]", value.Data())
+	fmt.Printf("\t-------->got data [%s]\n", value.Data())
 	return value.Data(), nil
 }
 
@@ -104,7 +120,7 @@ func (dbInst *DB) Put(key []byte, value []byte, sync bool) error {
 	}
 	err := dbInst.db.Put(wo, key, value)
 	if err != nil {
-		fmt.Printf("Error writing rocksdb key [%#v]", key)
+		fmt.Printf("\t-------->Error writing rocksdb key [%#v]\n", key)
 		return errors.Wrapf(err, "error writing rocksdb key [%#v]", key)
 	}
 	return nil
@@ -120,7 +136,7 @@ func (dbInst *DB) Delete(key []byte, sync bool) error {
 	}
 	err := dbInst.db.Delete(wo, key)
 	if err != nil {
-		fmt.Printf("Error deleting rocksdb key [%#v]", key)
+		fmt.Printf("\t-------->Error deleting rocksdb key [%#v]\n", key)
 		return errors.Wrapf(err, "error deleting rocksdb key [%#v]", key)
 	}
 	return nil
@@ -130,10 +146,10 @@ func (dbInst *DB) Delete(key []byte, sync bool) error {
 // The resultset contains all the keys that are present in the db between the startKey (inclusive) and the endKey (exclusive).
 // A nil startKey represents the first available key and a nil endKey represent a logical key after the last available key
 func (dbInst *DB) GetIterator(startKey []byte, endKey []byte) (*rocksdb.Iterator, error) {
-	fmt.Printf("Getting new RocksDB Iterator... for start key: [%s (%+v: [%s (%+v)]", startKey, startKey, endKey, endKey) //TODO: delete this
+	fmt.Printf("\t-------->Getting new RocksDB Iterator... for start key: [%s (%+v: [%s (%+v)]\n", startKey, startKey, endKey, endKey) //TODO: delete this
 	if dbInst.dbState == closed {
 		err := errors.New("error while obtaining db iterator: rocksdb: closed")
-		fmt.Printf("itr.Err()=[%+v]. Impossible to create an iterator", err)
+		fmt.Printf("\t-------->itr.Err()=[%+v]. Impossible to create an iterator\n", err)
 		return nil, err
 	}
 	//ro := dbInst.readOpts
@@ -145,27 +161,38 @@ func (dbInst *DB) GetIterator(startKey []byte, endKey []byte) (*rocksdb.Iterator
 	ro.SetBackgroundPurgeOnIteratorCleanup(true)
 	///	dbInst.mutex.RUnlock()
 	if endKey != nil {
-		fmt.Printf("if-case: endKey!=nil, UpperBound set")
+		fmt.Printf("\t-------->if-case: endKey!=nil, UpperBound set\n")
 		ro.SetIterateUpperBound(endKey)
 	} else {
 		fmt.Println("endKey is nil, no UpperBound would be set in the previous variant")
 		ro.SetIterateUpperBound(endKey)
 
 	}
-	fmt.Printf("PurgeOnIterCleanup = %t", ro.GetBackgroundPurgeOnIteratorCleanup())
+	fmt.Printf("\t-------->PurgeOnIterCleanup = %t\n", ro.GetBackgroundPurgeOnIteratorCleanup())
 	ni := dbInst.db.NewIterator(ro)
 	if ni.Valid() {
-		fmt.Printf("ni is Valid, err=[%+v]", ni.Err())
+		fmt.Printf("\t-------->ni is Valid, err=[%+v]\n", ni.Err())
 	} else {
-		fmt.Printf("ni is not Valid, err=[%+v]", ni.Err())
+		fmt.Printf("\t-------->ni is not Valid, err=[%+v]\n", ni.Err())
 	}
-	//if startKey != nil {
-	ni.Seek(startKey) //TODO: delete THIS_COMMENT: will point to the second or equal iterator key?
-	//fmt.Printf("Seeked startKey=[%s]", ni.Key().Data())
-	//ni.Prev() //we have to make step back
-	//fmt.Printf("Previous startKey=[%s]", ni.Key().Data())
-	//fmt.Printf("Seeked firstKey in DB=[%s]", ni.Key().Data())
+	ni.Seek(startKey)
+
 	return ni, nil
+}
+
+// WriteBatch writes a batch
+func (dbInst *DB) WriteBatch(batch *rocksdb.WriteBatch, sync bool) error {
+	fmt.Printf("\t-------->WritingBatch.Count()=[%d]\n", batch.Count()) //TODO: delete this
+	dbInst.mutex.RLock()
+	defer dbInst.mutex.RUnlock()
+	wo := rocksdb.NewDefaultWriteOptions()
+	if sync {
+		wo.SetSync(true)
+	}
+	if err := dbInst.db.Write(wo, batch); err != nil {
+		return errors.Wrap(err, "error writing batch to rocksdb")
+	}
+	return nil
 }
 
 // CreateDirIfMissing makes sure that the dir exists and returns whether the dir is empty
