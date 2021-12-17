@@ -2,13 +2,44 @@ package grocksdbtest2
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
+	rocksdb "github.com/linxGnu/grocksdb"
 	"github.com/stretchr/testify/require"
 )
 
 const testDBPath = "/tmp/tests/grocksdbtest2"
+
+func TestIteratorUpperBoundDirect(t *testing.T) {
+	db := newTestDB(t, "TestIterator", nil)
+	defer db.Close()
+	wo := rocksdb.NewDefaultWriteOptions()
+	givenKeys := createTestKeys(0, 199)
+	for i := 0; i < 200; i++ {
+		db.Put(wo, []byte(createTestKey(i)), []byte(createTestValue("db", i)))
+	}
+
+	ro := rocksdb.NewDefaultReadOptions()
+	iter := db.NewIterator(ro)
+	defer iter.Close()
+
+	for i := 0; i < 10000; i++ {
+		var actualKeys []string
+		for iter.SeekToFirst(); iter.Valid(); iter.Next() {
+			//key := make([]byte, 125)
+			//copy(key, iter.Key().Data())
+			key := iter.Key().Data()
+			actualKeys = append(actualKeys, string(key))
+
+		}
+		require.Nil(t, iter.Err())
+		require.EqualValues(t, actualKeys, givenKeys)
+		//require.EqualValues(t, len(actualKeys), len(givenKeys))
+	}
+
+}
 
 func TestDrop(t *testing.T) {
 	env := newTestProviderEnv(t, testDBPath)
@@ -131,6 +162,27 @@ func checkItrResults(t *testing.T, itr *Iterator, expectedKeys []string, expecte
 	//require.Equal(t, expectedValues, actualValues)
 	itr.Next()
 	require.Equal(t, false, itr.Valid())
+}
+
+func newTestDB(t *testing.T, name string, applyOpts func(opts *rocksdb.Options)) *rocksdb.DB {
+	dir, err := ioutil.TempDir("", "gorocksdb-"+name)
+	require.Nil(t, err)
+	t.Logf("DB will be opened in: %s", dir)
+	//dir := testDBPath
+
+	opts := rocksdb.NewDefaultOptions()
+	// test the ratelimiter
+	rateLimiter := rocksdb.NewRateLimiter(1024, 100*1000, 10)
+	opts.SetRateLimiter(rateLimiter)
+	opts.SetCreateIfMissing(true)
+	opts.SetCompression(rocksdb.ZSTDCompression)
+	if applyOpts != nil {
+		applyOpts(opts)
+	}
+	db, err := rocksdb.OpenDb(opts, dir)
+	require.Nil(t, err)
+
+	return db
 }
 
 type testDBProviderEnv struct {
