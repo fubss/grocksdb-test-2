@@ -14,31 +14,35 @@ const testDBPath = "/tmp/tests/grocksdbtest2"
 
 func TestIteratorUpperBoundDirect(t *testing.T) {
 	db := newTestDB(t, "TestIterator", nil)
-	defer db.Close()
 	wo := rocksdb.NewDefaultWriteOptions()
 	givenKeys := createTestKeys(0, 199)
 	for i := 0; i < 200; i++ {
-		db.Put(wo, []byte(createTestKey(i)), []byte(createTestValue("db", i)))
+		db.Put(wo, []byte(givenKeys[i]), []byte(createTestValue("db", i)))
 	}
 
 	ro := rocksdb.NewDefaultReadOptions()
 	ro.SetIterateUpperBound([]byte("keya"))
-	iter := db.NewIterator(ro)
-	defer iter.Close()
 
-	for i := 0; i < 200; i++ {
-		var actualKeys []string
-		for iter.SeekToFirst(); iter.Valid(); iter.Next() {
-			//key := make([]byte, 125)
-			//copy(key, iter.Key().Data())
-			key := iter.Key().Data()
-			actualKeys = append(actualKeys, string(key))
+	for i := 0; i < 20000; i++ {
+		t.Run(fmt.Sprintf("Loop_%06d", i), func(t *testing.T) {
+			var actualKeys []string
+			iter := db.NewIterator(ro)
 
-		}
-		require.Nil(t, iter.Err())
-		require.EqualValues(t, actualKeys, givenKeys)
-		//require.EqualValues(t, len(actualKeys), len(givenKeys))
+			for iter.SeekToFirst(); iter.Valid(); iter.Next() {
+				key := make([]byte, 10)
+				copy(key, iter.Key().Data())
+				//key := iter.Key().Data()
+				actualKeys = append(actualKeys, string(key))
+
+			}
+			require.Nil(t, iter.Err())
+			iter.Close()
+			//require.EqualValues(t, givenKeys, actualKeys)
+			require.EqualValues(t, len(givenKeys), len(actualKeys))
+			//t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", i, len(givenKeys), len(actualKeys))
+		})
 	}
+	db.Close()
 
 }
 
