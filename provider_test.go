@@ -22,10 +22,11 @@ func TestIteratorUpperBoundDirect(t *testing.T) {
 	}
 
 	ro := rocksdb.NewDefaultReadOptions()
+	ro.SetIterateUpperBound([]byte("keya"))
 	iter := db.NewIterator(ro)
 	defer iter.Close()
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 200; i++ {
 		var actualKeys []string
 		for iter.SeekToFirst(); iter.Valid(); iter.Next() {
 			//key := make([]byte, 125)
