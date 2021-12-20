@@ -20,6 +20,7 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 	UseSubtestPerIteration := true
 	//=================================================================================================================================
 	loopId := 0
+	testFailed := false
 
 	//settle db with data
 	db := newTestDB(t, "TestIterator", nil)
@@ -44,18 +45,25 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 		}
 		require.Nil(t, iter.Err())
 		iter.Close()
-		//require.EqualValues(t, givenKeys, actualKeys)
-		require.EqualValues(t, len(givenKeys), len(actualKeys))
 		if !UseSubtestPerIteration {
 			t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", loopId, len(givenKeys), len(actualKeys))
+			if len(givenKeys) != len(actualKeys) {
+				testFailed = true
+			}
+		} else {
+			//require.EqualValues(t, givenKeys, actualKeys)
+			require.EqualValues(t, len(givenKeys), len(actualKeys))
 		}
 	}
-	for loopId := 0; loopId < IterationsNumber; loopId++ {
+	for loopId = 0; loopId < IterationsNumber; loopId++ {
 		if UseSubtestPerIteration {
 			t.Run(fmt.Sprintf("Loop_%06d", loopId), testFunc)
 		} else {
 			testFunc(t)
 		}
+	}
+	if !UseSubtestPerIteration {
+		require.False(t, testFailed)
 	}
 	db.Close()
 
