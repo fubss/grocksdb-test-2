@@ -17,8 +17,8 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 	//input data from google sheet https://docs.google.com/spreadsheets/d/1NOK5iuf4z1_SFngkWYHOHB478g1bp-TjaZ8fC7e81gs/edit?usp=sharing
 	IterationsNumber := 200
 	KeysNumber := 200
-	UseSubtestPerIteration := true
 	//=================================================================================================================================
+	UseSubtestPerIteration := false //when false, then output is shorter
 	loopId := 0
 	testFailed := false
 
