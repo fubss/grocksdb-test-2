@@ -12,35 +12,50 @@ import (
 
 const testDBPath = "/tmp/tests/grocksdbtest2"
 
-func TestIteratorUpperBoundDirect(t *testing.T) {
+func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
+	//=================================================================================================================================
+	//input data from google sheet https://docs.google.com/spreadsheets/d/1NOK5iuf4z1_SFngkWYHOHB478g1bp-TjaZ8fC7e81gs/edit?usp=sharing
+	IterationsNumber := 200
+	KeysNumber := 200
+	UseSubtestPerIteration := true
+	//=================================================================================================================================
+	loopId := 0
+
+	//settle db with data
 	db := newTestDB(t, "TestIterator", nil)
 	wo := rocksdb.NewDefaultWriteOptions()
-	givenKeys := createTestKeys(0, 199)
-	for i := 0; i < 200; i++ {
+	givenKeys := createTestKeys(0, KeysNumber-1)
+	for i := 0; i < KeysNumber; i++ {
 		db.Put(wo, []byte(givenKeys[i]), []byte(createTestValue("db", i)))
 	}
-
+	//prepare ReadOptions
 	ro := rocksdb.NewDefaultReadOptions()
 	ro.SetIterateUpperBound([]byte("keya"))
 
-	for i := 0; i < 20000; i++ {
-		t.Run(fmt.Sprintf("Loop_%06d", i), func(t *testing.T) {
-			var actualKeys []string
-			iter := db.NewIterator(ro)
+	testFunc := func(t *testing.T) {
+		var actualKeys []string
+		iter := db.NewIterator(ro)
 
-			for iter.SeekToFirst(); iter.Valid(); iter.Next() {
-				key := make([]byte, 10)
-				copy(key, iter.Key().Data())
-				//key := iter.Key().Data()
-				actualKeys = append(actualKeys, string(key))
+		for iter.SeekToFirst(); iter.Valid(); iter.Next() {
+			key := make([]byte, 10)
+			copy(key, iter.Key().Data())
+			actualKeys = append(actualKeys, string(key))
 
-			}
-			require.Nil(t, iter.Err())
-			iter.Close()
-			//require.EqualValues(t, givenKeys, actualKeys)
-			require.EqualValues(t, len(givenKeys), len(actualKeys))
-			//t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", i, len(givenKeys), len(actualKeys))
-		})
+		}
+		require.Nil(t, iter.Err())
+		iter.Close()
+		//require.EqualValues(t, givenKeys, actualKeys)
+		require.EqualValues(t, len(givenKeys), len(actualKeys))
+		if !UseSubtestPerIteration {
+			t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", loopId, len(givenKeys), len(actualKeys))
+		}
+	}
+	for loopId := 0; loopId < IterationsNumber; loopId++ {
+		if UseSubtestPerIteration {
+			t.Run(fmt.Sprintf("Loop_%06d", loopId), testFunc)
+		} else {
+			testFunc(t)
+		}
 	}
 	db.Close()
 
