@@ -14,11 +14,10 @@ const testDBPath = "/tmp/tests/grocksdbtest2"
 
 func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 	//=================================================================================================================================
-	//input data from google sheet https://docs.google.com/spreadsheets/d/1NOK5iuf4z1_SFngkWYHOHB478g1bp-TjaZ8fC7e81gs/edit?usp=sharing
-	IterationsNumber := 200
-	KeysNumber := 200
+	//input data
+	IterationsNumber := 200 // how many iterations loops
+	KeysNumber := 2000      //how many keys will be in DB
 	//=================================================================================================================================
-	UseSubtestPerIteration := false //when false, then output is shorter
 	loopId := 0
 	testFailed := false
 
@@ -29,11 +28,12 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 	for i := 0; i < KeysNumber; i++ {
 		db.Put(wo, []byte(givenKeys[i]), []byte(createTestValue("db", i)))
 	}
-	//prepare ReadOptions
-	ro := rocksdb.NewDefaultReadOptions()
-	ro.SetIterateUpperBound([]byte("keya"))
 
-	testFunc := func(t *testing.T) {
+	for loopId = 0; loopId < IterationsNumber; loopId++ {
+		//prepare ReadOptions
+		ro := rocksdb.NewDefaultReadOptions()
+		ro.SetIterateUpperBound([]byte("keya"))
+
 		var actualKeys []string
 		iter := db.NewIterator(ro)
 
@@ -45,26 +45,13 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 		}
 		require.Nil(t, iter.Err())
 		iter.Close()
-		if !UseSubtestPerIteration {
-			t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", loopId, len(givenKeys), len(actualKeys))
-			if len(givenKeys) != len(actualKeys) {
-				testFailed = true
-			}
-		} else {
-			//require.EqualValues(t, givenKeys, actualKeys)
-			require.EqualValues(t, len(givenKeys), len(actualKeys))
+		//require.EqualValues(t, givenKeys, actualKeys)
+		t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", loopId, len(givenKeys), len(actualKeys))
+		if len(givenKeys) != len(actualKeys) {
+			testFailed = true
 		}
 	}
-	for loopId = 0; loopId < IterationsNumber; loopId++ {
-		if UseSubtestPerIteration {
-			t.Run(fmt.Sprintf("Loop_%06d", loopId), testFunc)
-		} else {
-			testFunc(t)
-		}
-	}
-	if !UseSubtestPerIteration {
-		require.False(t, testFailed)
-	}
+	require.False(t, testFailed)
 	db.Close()
 
 }
