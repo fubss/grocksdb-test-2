@@ -38,8 +38,11 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 		iter := db.NewIterator(ro)
 
 		for iter.SeekToFirst(); iter.Valid(); iter.Next() {
-			key := make([]byte, 10)
-			copy(key, iter.Key().Data())
+			rocksdbKey := iter.Key()
+			keyData := rocksdbKey.Data()
+			key := make([]byte, len(keyData))
+			copy(key, keyData)
+			rocksdbKey.Free()
 			actualKeys = append(actualKeys, string(key))
 
 		}
@@ -173,6 +176,7 @@ func checkItrResults(t *testing.T, itr *Iterator, expectedKeys []string, expecte
 		t.Logf("Error-catch-2 during iteration: %s", err)
 	}
 	require.Equal(t, len(expectedKeys), len(actualKeys))
+	require.Nil(t, itr.Err())
 	//require.Equal(t, expectedKeys, actualKeys)
 	//require.Equal(t, expectedValues, actualValues)
 	itr.Next()
