@@ -18,7 +18,6 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 	IterationsNumber := 200 // how many iterations loops
 	KeysNumber := 2000      //how many keys will be in DB
 	//=================================================================================================================================
-	loopId := 0
 	testFailed := false
 
 	//settle db with data
@@ -29,7 +28,7 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 		db.Put(wo, []byte(givenKeys[i]), []byte(createTestValue("db", i)))
 	}
 
-	for loopId = 0; loopId < IterationsNumber; loopId++ {
+	for i := 0; i < IterationsNumber; i++ {
 		//prepare ReadOptions
 		ro := rocksdb.NewDefaultReadOptions()
 		ro.SetIterateUpperBound([]byte("keya"))
@@ -49,7 +48,7 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 		require.Nil(t, iter.Err())
 		iter.Close()
 		//require.EqualValues(t, givenKeys, actualKeys)
-		t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", loopId, len(givenKeys), len(actualKeys))
+		t.Logf("Loop_%d, givenKeysLen=%d, actualKeysLen=%d", i, len(givenKeys), len(actualKeys))
 		if len(givenKeys) != len(actualKeys) {
 			testFailed = true
 		}
