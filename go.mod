@@ -3,7 +3,7 @@ module github.com/fubss/grocksdb-test-2
 go 1.17
 
 require (
-	github.com/linxGnu/grocksdb v1.6.38
+	github.com/linxGnu/grocksdb v1.6.45
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0
 )

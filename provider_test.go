@@ -15,12 +15,12 @@ const testDBPath = "/tmp/tests/grocksdbtest2"
 func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 	//=================================================================================================================================
 	//input data
-	IterationsNumber := 200 // how many iterations loops
-	KeysNumber := 2000      //how many keys will be in DB
+	IterationsNumber := 10 // how many iterations loops
+	KeysNumber := 200000   // how many keys will be in DB
 	//=================================================================================================================================
 	testFailed := false
 
-	//settle db with data
+	// settle db with data
 	db := newTestDB(t, "TestIterator", nil)
 	wo := rocksdb.NewDefaultWriteOptions()
 	givenKeys := createTestKeys(0, KeysNumber-1)
@@ -29,7 +29,7 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 	}
 
 	for i := 0; i < IterationsNumber; i++ {
-		//prepare ReadOptions
+		// prepare ReadOptions
 		ro := rocksdb.NewDefaultReadOptions()
 		ro.SetIterateUpperBound([]byte("keya"))
 
@@ -52,10 +52,11 @@ func TestIteratorUpperBoundWithDirectAPICall(t *testing.T) {
 		if len(givenKeys) != len(actualKeys) {
 			testFailed = true
 		}
+
+		ro.Destroy()
 	}
 	require.False(t, testFailed)
 	db.Close()
-
 }
 
 func TestDrop(t *testing.T) {
